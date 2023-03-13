@@ -252,6 +252,30 @@
 
         }
       },
+      "name.synonyms": {
+        "type": "text",
+        "analyzer": "english",
+        "filter": {
+          "synonym": {
+            "type": "synonym",
+            "synonyms_path": "/workspace/datasets/fasttext/synonyms.csv"
+          }
+        },
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 2048
+          },
+          "hyphens": {
+            "type": "text",
+            "analyzer": "smarter_hyphens"
+          },
+          "suggest": {
+            "type": "completion"
+          }
+
+        }
+      },
       "onSale": {
         "type": "boolean"
       },

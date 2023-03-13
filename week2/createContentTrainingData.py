@@ -5,6 +5,9 @@ from tqdm import tqdm
 import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
+import itertools
+import pandas as pd
+
 
 def transform_name(product_name):
     # IMPLEMENT
@@ -20,7 +23,7 @@ general.add_argument("--output", default="/workspace/datasets/fasttext/output.fa
 general.add_argument("--label", default="id", help="id is default and needed for downsteam use, but name is helpful for debugging")
 
 # IMPLEMENT: Setting min_products removes infrequent categories and makes the classifier's task easier.
-general.add_argument("--min_products", default=0, type=int, help="The minimum number of products per category (default is 0).")
+general.add_argument("--min_products", default=500, type=int, help="The minimum number of products per category (default is 0).")
 
 args = parser.parse_args()
 output_file = args.output
@@ -62,8 +65,11 @@ if __name__ == '__main__':
     files = glob.glob(f'{directory}/*.xml')
     print("Writing results to %s" % output_file)
     with multiprocessing.Pool() as p:
-        all_labels = tqdm(p.imap(_label_filename, files), total=len(files))
+        all_labels = list(itertools.chain(*tqdm(p.imap(_label_filename, files), total=len(files))))
+        df = pd.DataFrame(all_labels, columns=['category', 'product'])
+        df_filtered = df[df.groupby('category')['product'].transform('count') >= min_products]
         with open(output_file, 'w') as output:
-            for label_list in all_labels:
-                for (cat, name) in label_list:
-                    output.write(f'__label__{cat} {name}\n')
+            for index, row in df_filtered.iterrows():
+                cat = row['category']
+                name = row['product']
+                output.write(f'__label__{cat} {name}\n')
