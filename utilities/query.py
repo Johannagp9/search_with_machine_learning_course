@@ -11,16 +11,16 @@ from urllib.parse import urljoin
 import pandas as pd
 import fileinput
 import logging
-
+import fasttext
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logging.basicConfig(format='%(levelname)s:%(message)s')
 
-queries_classifier_model = fasttext.load_model("/workspace/search_with_machine_learning_course/query_classifier.bin")
+queries_classifier_model = fasttext.load_model("/workspace/search_with_machine_learning_course/queries_classifier.bin")
 
 
-def create_filter(categories, confidence_scores):
+def create_filters(categories, confidence_scores):
     categories = [text.removeprefix("__label__") for text in categories]
     agg_confidence = 0
     threshold = 0.5
@@ -212,17 +212,17 @@ def create_query(user_query, click_prior_query, filters, sort="_score", sortDir=
 
 def search(client, user_query, index="bbuy_products", sort="_score", sortDir="desc",synonyms=False):
     #### W3: classify the query
-    categories, probs = queries_classifier_model.predict(query, k=10)
+    categories, probs = queries_classifier_model.predict(query, k=5)
     #### W3: create filters and boosts 
     # Note: you may also want to modify the `create_query` method above
-    filters = create_filters(user_query)
-    query_obj = create_query(user_query, filters=filters)
+    filters = create_filters(categories,probs)
+    query_obj = create_query(user_query, filters=filters, sort=sort, sortDir=sortDir,synonyms=synonyms, click_prior_query=None)
     logging.info(query_obj)
     response = client.search(query_obj, index=index)
     if response and response['hits']['hits'] and len(response['hits']['hits']) > 0:
         hits = response['hits']['hits']
         print(json.dumps(response, indent=2))
-
+    print(categories,probs)
 
 if __name__ == "__main__":
     host = 'localhost'
