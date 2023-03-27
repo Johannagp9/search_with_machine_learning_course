@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 import numpy as np
 import csv
+from tqdm import tqdm
 
 # Useful if you want to perform stemming.
 import nltk
@@ -13,6 +14,13 @@ categories_file_name = r'/workspace/datasets/product_data/categories/categories_
 
 queries_file_name = r'/workspace/datasets/train.csv'
 output_file_name = r'/workspace/datasets/fasttext/labeled_queries.txt'
+
+def clean_text(text: str):
+    text = text.lower()
+    text = "".join([ c if (c.isalpha() or c.isnumeric()) else c for c in text ])
+    text = text.strip()
+    return stemmer.stem(text) 
+
 
 parser = argparse.ArgumentParser(description='Process arguments.')
 general = parser.add_argument_group("general")
@@ -49,8 +57,20 @@ queries_df = pd.read_csv(queries_file_name)[['category', 'query']]
 queries_df = queries_df[queries_df['category'].isin(categories)]
 
 # IMPLEMENT ME: Convert queries to lowercase, and optionally implement other normalization, like stemming.
+queries_df['query'] = queries_df['query'].apply(clean_text)
 
 # IMPLEMENT ME: Roll up categories to ancestors to satisfy the minimum number of queries per category.
+queries_df_count =  queries_df.groupby(['category']).size().reset_index(name='count')
+queries_df_parent = pd.merge(queries_df_count, parents_df, left_on='category', right_on='category')
+queries_df_parent = queries_df_parent.sort_values('count')
+
+for idx, row in tqdm(queries_df_parent.iterrows()):
+    if row['count'] < min_queries:
+        queries_df.loc[queries_df['category'] == row['category'], 'category'] = row['parent']
+        queries_df_count.loc[queries_df_count['category'] == row['parent'], 'count'] = len(queries_df['category']==row['parent'])
+    else:
+        break
+
 
 # Create labels in fastText format.
 queries_df['label'] = '__label__' + queries_df['category']
